@@ -20,9 +20,9 @@ Hay evidencia de compatibilidad criptográfica HS256/Base64, siempre que ambos u
 |---|---|
 | Algoritmo | **HS256 fijado en `SecurityConfiguration`**. No existe variable de entorno para cambiarlo; no se elige a partir del `alg` del token. Otros algoritmos y JWT sin firma se rechazan. |
 | `IAM_JWT_SECRET_BASE64` | Base64 estándar; al menos 32 bytes decodificados. Para IAM real, la misma clave que recibe IAM como `JWT_SECRET_BASE64`. No reutilizar claves de tests. |
-| `IAM_JWT_ISSUER` | Valor no vacío, coincidencia exacta con `iss`. Pendiente de acordar para IAM real. |
-| `IAM_JWT_AUDIENCE` | Valor no vacío que debe estar incluido en `aud`. Pendiente de acordar para IAM real. |
-| `IAM_OWNER_ROLE` | `HUARIQUE_OWNER` para el código IAM revisado. El predeterminado del servicio sigue siendo `OWNER`; configurar explícitamente. |
+| `IAM_JWT_ISSUER` | Valor no vacío, coincidencia exacta con `iss`. Predeterminado `foodly-iam`, el que emite IAM. |
+| `IAM_JWT_AUDIENCE` | Valor no vacío que debe estar incluido en `aud`. Predeterminado `foodly-business`. |
+| `IAM_OWNER_ROLE` | Predeterminado `HUARIQUE_OWNER`, el rol de dueño que emite IAM. |
 
 Business exige además `sub` no vacío de hasta 128 caracteres y `exp`. Comprueba expiración y `nbf` si existe, con la tolerancia predeterminada de Spring Security de 60 segundos. Admite rol singular `role` o lista `roles`. El dueño del recurso se compara con el `sub` verificado. Estos controles siguen activos también en desarrollo.
 

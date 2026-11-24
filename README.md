@@ -54,9 +54,10 @@ En Linux/macOS usa `./mvnw`. Salud: `GET /actuator/health` (MongoDB/RabbitMQ; no
 | `BUSINESS_EVENTS_EXCHANGE` | `foodly.business`, exchange topic durable |
 | `OUTBOX_ENABLED` | `true`; desactivarlo detiene entregas, sigue guardando eventos |
 | `OUTBOX_DELAY_MS` | `1000` entre lotes |
-| `IAM_JWT_SECRET_BASE64` | Clave compartida HS256 Base64, al menos 32 bytes decodificados |
-| `IAM_JWT_ISSUER`, `IAM_JWT_AUDIENCE` | Obligatorios, acordados con IAM |
-| `IAM_OWNER_ROLE` | `OWNER`; ajustar al valor exacto de IAM |
+| `IAM_JWT_SECRET_BASE64` | Obligatoria, sin valor por defecto. Clave compartida HS256 Base64 (la misma de `JWT_SECRET_BASE64` en IAM), al menos 32 bytes decodificados |
+| `IAM_JWT_ISSUER` | `foodly-iam` por defecto; debe coincidir con `JWT_ISSUER` de IAM |
+| `IAM_JWT_AUDIENCE` | `foodly-business` por defecto; debe estar incluido en `JWT_AUDIENCES` de IAM |
+| `IAM_OWNER_ROLE` | `HUARIQUE_OWNER` por defecto, el rol de dueño que emite IAM |
 | `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` | Cuenta para cargas/eliminaciones |
 
 ## API y autorización
