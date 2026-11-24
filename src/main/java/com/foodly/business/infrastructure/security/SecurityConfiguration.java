@@ -33,7 +33,7 @@ public class SecurityConfiguration {
         return decoder;
     }
     @Bean SecurityFilterChain securityFilterChain(HttpSecurity http, ObjectMapper json,
-            @Value("${business.iam.owner-role:OWNER}") String ownerRole) throws Exception {
+            @Value("${business.iam.owner-role:HUARIQUE_OWNER}") String ownerRole) throws Exception {
         var converter = new JwtAuthenticationConverter();
         converter.setJwtGrantedAuthoritiesConverter(jwt -> {
             var roles = new ArrayList<String>();

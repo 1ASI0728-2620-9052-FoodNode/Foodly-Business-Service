@@ -28,7 +28,7 @@ class BusinessControllersTest {
     @MockitoBean MenuApplicationService menus;
     @MockitoBean ImageApplicationService images;
     @MockitoBean JwtDecoder decoder;
-    RequestPostProcessor owner() { return jwt().jwt(j->j.subject("owner")).authorities(new SimpleGrantedAuthority("ROLE_OWNER")); }
+    RequestPostProcessor owner() { return jwt().jwt(j->j.subject("owner")).authorities(new SimpleGrantedAuthority("ROLE_HUARIQUE_OWNER")); }
     RequestPostProcessor explorer() { return jwt().jwt(j->j.subject("explorer")).authorities(new SimpleGrantedAuthority("ROLE_EXPLORER")); }
     @Test void registers201WithLocation() throws Exception {
         when(huariques.register(eq("owner"),any())).thenReturn(huarique());
