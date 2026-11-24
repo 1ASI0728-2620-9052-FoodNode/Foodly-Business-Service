@@ -1,0 +1,42 @@
+# Local/demo dependencies only. Run the Java service on the host.
+services:
+  mongodb:
+    image: mongo:8.0
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all"]
+    ports: ["127.0.0.1:27017:27017"]
+    volumes: ["business-mongo:/data/db"]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "quit(db.hello().isWritablePrimary ? 0 : 1)"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+  mongo-init:
+    image: mongo:8.0
+    depends_on:
+      mongodb:
+        condition: service_started
+    entrypoint: ["bash", "-c"]
+    command:
+      - >-
+        until mongosh --host mongodb --quiet --eval 'db.adminCommand({ping:1})'; do sleep 1; done;
+        mongosh --host mongodb --quiet --eval
+        'try { rs.status() } catch (e) { if (e.code !== 94) throw e; rs.initiate({_id:"rs0", members:[{_id:0, host:"localhost:27017"}]}) }'
+    restart: on-failure
+  rabbitmq:
+    image: rabbitmq:4-management
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USERNAME:?Set RABBITMQ_USERNAME}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?Set RABBITMQ_PASSWORD}
+    ports: ["127.0.0.1:5672:5672", "127.0.0.1:15672:15672"]
+    volumes: ["business-rabbit:/var/lib/rabbitmq"]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+volumes:
+  business-mongo:
+  business-rabbit:
