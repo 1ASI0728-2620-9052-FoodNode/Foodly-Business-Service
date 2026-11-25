@@ -44,6 +44,7 @@ public class SecurityConfiguration {
         });
         http.csrf(c -> c.disable()).sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(a -> a.requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
+                .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs", "/v3/api-docs/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/business-api/huariques/me").hasRole(ownerRole)
                 .requestMatchers(HttpMethod.GET, "/business-api/**").authenticated()
                 .requestMatchers("/business-api/**").hasRole(ownerRole).anyRequest().denyAll())
