@@ -35,16 +35,19 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 /**
  * JJWT 0.13.0 producer fixtures -> real Nimbus decoder/security chain/application owner policy.
- * IAM develop 850c6d1f45398f3dc5592920d84520146f880c3e is evidence, not a deployed producer.
- * Repositories/outbox are mocks: this proves neither remote IAM login nor real persistence.
+ * Tokens reproduce what Foodly-IAM-Service emits after feature/jwt-issuer-audience (PR #3): HS256, iss foodly-iam,
+ * aud with every Foodly audience, sub = user UUID, role, iat and a 60 minute exp. IAM is evidence, not a deployed producer.
+ * Issuer, audience and owner role are NOT set here: they come from the application.properties defaults, so this
+ * test also proves those defaults match IAM. Repositories/outbox are mocks: no remote IAM login or real persistence.
  */
-@WebMvcTest(controllers=HuariqueController.class, properties={
-        "business.iam.issuer=foodly-iam", "business.iam.audience=foodly-business",
-        "business.iam.owner-role=HUARIQUE_OWNER"})
+@WebMvcTest(controllers=HuariqueController.class)
 @AutoConfigureMockMvc(print=MockMvcPrint.NONE)
 @Import({SecurityConfiguration.class, HuariqueApplicationService.class, IamJwtInteroperabilityTest.Policy.class})
 class IamJwtInteroperabilityTest {
     private static final String ISSUER="foodly-iam", AUDIENCE="foodly-business";
+    /** Default foodly.jwt.audiences of Foodly-IAM-Service. */
+    private static final List<String> IAM_AUDIENCES=List.of("foodly-iam","foodly-business","foodly-radar",
+            "foodly-messaging","foodly-reservation","foodly-community");
     private static final String OWNER="a519c2ae-9ac5-40ac-9149-470bf3bb9e96";
     private static final String OTHER="f9347aa3-9c75-46d1-ae62-ed76f0f14933";
     private static final byte[] KEY=randomKey(64); // ephemeral; also permits a same-key HS384 rejection test
@@ -66,6 +69,20 @@ class IamJwtInteroperabilityTest {
         when(repository.save(any())).thenAnswer(invocation->invocation.getArgument(0));
     }
 
+    @Test void ownerTokenIdenticalToIamRegistersHuariqueWith201() throws Exception {
+        String jwt=iamToken("HUARIQUE_OWNER",OWNER);
+        mvc.perform(post("/business-api/huariques").header(HttpHeaders.AUTHORIZATION,"Bearer "+jwt)
+                        .contentType(MediaType.APPLICATION_JSON).content(PROFILE_JSON))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.ownerId").value(OWNER));
+        verify(repository).save(argThat(h->h.ownerId().equals(OWNER)));
+    }
+    @Test void explorerTokenIdenticalToIamCannotRegisterHuariqueAndGets403() throws Exception {
+        String jwt=iamToken("GASTRONOMIC_EXPLORER",OTHER);
+        mvc.perform(post("/business-api/huariques").header(HttpHeaders.AUTHORIZATION,"Bearer "+jwt)
+                        .contentType(MediaType.APPLICATION_JSON).content(PROFILE_JSON))
+                .andExpect(status().isForbidden()).andExpect(jsonPath("$.status").value(403));
+        verify(repository,never()).save(any()); verifyNoInteractions(outbox);
+    }
     @Test void proposedIamOwnerTokenReachesOwnerRoute() throws Exception {
         when(repository.findByOwnerId(OWNER)).thenReturn(Optional.of(ownedHuarique()));
         mvc.perform(get("/business-api/huariques/me").header(HttpHeaders.AUTHORIZATION,bearer("HUARIQUE_OWNER",OWNER)))
@@ -148,7 +165,7 @@ class IamJwtInteroperabilityTest {
         if (invalid!=Invalid.CURRENT_IAM && invalid!=Invalid.MISSING_ISSUER)
             builder.issuer(invalid==Invalid.WRONG_ISSUER?"another-issuer":ISSUER);
         if (invalid!=Invalid.CURRENT_IAM && invalid!=Invalid.MISSING_AUDIENCE)
-            builder.audience().add("foodly-iam").add(invalid==Invalid.WRONG_AUDIENCE?"another-service":AUDIENCE).and();
+            builder.audience().add(invalid==Invalid.WRONG_AUDIENCE?List.of("foodly-iam","another-service"):IAM_AUDIENCES).and();
         if (invalid!=Invalid.MISSING_EXPIRY)
             builder.expiration(Date.from(invalid==Invalid.EXPIRED?now.minusSeconds(120):now.plusSeconds(3600)));
         if (invalid==Invalid.MISSING_SUBJECT) builder.subject(null);
@@ -159,6 +176,13 @@ class IamJwtInteroperabilityTest {
         byte[] key=invalid==Invalid.WRONG_KEY?randomKey(64):KEY;
         if (invalid==Invalid.BASE64_TEXT_USED_AS_KEY) key=Base64.getEncoder().encodeToString(KEY).getBytes(StandardCharsets.UTF_8);
         return builder.signWith(Keys.hmacShaKeyFor(key),invalid==Invalid.HS384?Jwts.SIG.HS384:Jwts.SIG.HS256).compact();
+    }
+    /** Mirrors Foodly-IAM-Service JwtTokenIssuer.issue: iss, aud, sub, role, iat and exp = iat + 60 min, HS256. */
+    private static String iamToken(String role,String subject) {
+        Instant now=Instant.now();
+        return Jwts.builder().issuer(ISSUER).audience().add(IAM_AUDIENCES).and().subject(subject).claim("role",role)
+                .issuedAt(Date.from(now)).expiration(Date.from(now.plusSeconds(60*60)))
+                .signWith(Keys.hmacShaKeyFor(KEY),Jwts.SIG.HS256).compact();
     }
     private static byte[] randomKey(int length) { byte[] value=new byte[length]; new SecureRandom().nextBytes(value); return value; }
     private static Huarique ownedHuarique() {
